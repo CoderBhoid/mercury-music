@@ -32,6 +32,7 @@ import com.metrolist.music.ui.screens.artist.ArtistSongsScreen
 import com.metrolist.music.ui.screens.equalizer.EqScreen
 import com.metrolist.music.ui.screens.equalizer.wizard.WizardScreen
 import com.metrolist.music.ui.screens.library.LibraryScreen
+import com.metrolist.music.ui.screens.local.LocalMediaScreen
 import com.metrolist.music.ui.screens.playlist.AutoPlaylistScreen
 import com.metrolist.music.ui.screens.playlist.CachePlaylistScreen
 import com.metrolist.music.ui.screens.playlist.LocalPlaylistScreen
@@ -79,7 +80,7 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable(Screens.Search.route) { backStackEntry ->
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
-        val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+        val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.ON)
         val isSystemInDarkTheme = isSystemInDarkTheme()
         val useDarkTheme =
             remember(darkTheme, isSystemInDarkTheme) {
@@ -93,6 +94,10 @@ fun NavGraphBuilder.navigationBuilder(
             pureBlack = pureBlack,
             savedStateHandle = backStackEntry.savedStateHandle
         )
+    }
+
+    composable(Screens.Local.route) {
+        LocalMediaScreen()
     }
 
     composable(Screens.Library.route) {
@@ -130,6 +135,10 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("charts_screen") {
+        ChartsScreen(navController)
+    }
+
+    composable("explore") {
         ChartsScreen(navController)
     }
 

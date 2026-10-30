@@ -157,7 +157,11 @@ fun LibraryAlbumsScreen(
         visibleAlbums.filter { album ->
             val artistNames = album.artists.map { it.name }.toTypedArray()
             matchesNormalizedQuery(normalizedQuery, album.album.title, *artistNames)
-        }.distinctBy { it.id }
+        }.distinctBy { it.id }.distinctBy { album ->
+            val playlistPart = album.album.playlistId?.takeIf { it.isNotBlank() }
+            val titleArtistPart = "${album.album.title.trim().lowercase()}_${album.artists.firstOrNull()?.name?.trim()?.lowercase().orEmpty()}"
+            playlistPart ?: titleArtistPart
+        }
     }
 
     val lazyListState = rememberLazyListState()

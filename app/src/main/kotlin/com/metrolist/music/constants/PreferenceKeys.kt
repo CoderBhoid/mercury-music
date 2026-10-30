@@ -17,6 +17,14 @@ val EnableHighRefreshRateKey = booleanPreferencesKey("enableHighRefreshRate")
 val EnableLandscapeScalingKey = booleanPreferencesKey("enableLandscapeScaling")
 val DynamicThemeKey = booleanPreferencesKey("dynamicTheme")
 val SelectedThemeColorKey = intPreferencesKey("selectedThemeColor")
+val AppFontKey = stringPreferencesKey("appFont")
+
+enum class AppFont(val label: String) {
+    MERCURY_PREMIUM("Mercury Premium (Urbanist & Playfair)"),
+    URBANIST("Urbanist Clean"),
+    SYSTEM("System Default"),
+}
+
 val DarkModeKey = stringPreferencesKey("darkMode")
 val PureBlackKey = booleanPreferencesKey("pureBlack")
 val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")
@@ -165,6 +173,7 @@ val EnableDynamicIconKey = booleanPreferencesKey("enableDynamicIcon")
 
 val EnableDiscordRPCKey = booleanPreferencesKey("discordRPCEnable")
 val DiscordInfoDismissedKey = booleanPreferencesKey("discordInfoDismissed")
+val WelcomeCardDismissedKey = booleanPreferencesKey("welcomeCardDismissed")
 val DiscordUsernameKey = stringPreferencesKey("discordUsername")
 val DiscordNameKey = stringPreferencesKey("discordName")
 val DiscordAvatarKey = stringPreferencesKey("discordAvatar")

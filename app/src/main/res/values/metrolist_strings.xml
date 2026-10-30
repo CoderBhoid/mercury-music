@@ -250,7 +250,7 @@
     <string name="release_notes">Release notes</string>
     <string name="changelog">Changelog</string>
     <string name="changelog_empty">No changelogs available</string>
-    <string name="github_releases_url">https://github.com/MetrolistGroup/Metrolist/releases</string>
+    <string name="github_releases_url">https://github.com/CoderBhoid/mercury-music/releases</string>
     <string name="list_bullet">•</string>
     <string name="view_on_github">View on GitHub</string>
     <string name="current_version">Current version</string>
@@ -375,11 +375,11 @@
     <string name="check_for_updates">Automatically check for updates</string>
     <string name="update_notifications">Enable update notifications</string>
     <string name="update_available_title">New update available</string>
-    <string name="update_available_message">Metrolist %s is ready to download.</string>
+    <string name="update_available_message">Mercury %s is ready to download.</string>
     <string name="update_action">Update</string>
     <string name="update_channel_name">App updates</string>
     <string name="update_channel_desc">Notifications about new app versions</string>
-    <string name="kmp_upgrade_title">Metrolist KMP %s is available</string>
+    <string name="kmp_upgrade_title">Mercury %s is available</string>
     <string name="kmp_upgrade_warning">Metrolist KMP is still in development. You may encounter bugs or incomplete features.</string>
     <string name="kmp_upgrade_action">Try KMP</string>
     <string name="kmp_upgrade_later">Not now</string>
@@ -862,7 +862,7 @@
     <string name="metrolist">METROLIST</string>
     <string name="wanna_play_favorite_song">Want to play their favorite song?</string>
     <string name="yeah">Yeah!</string>
-    <string name="stands_with_palestine">This project stands with Palestine 🇵🇸</string>
+    <string name="stands_with_palestine">This project stands with humanity 🌍</string>
 
     <!-- Podcasts -->
     <string name="filter_podcasts">Podcasts</string>
@@ -994,4 +994,13 @@
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
+    <string name="listen_again">Listen Again</string>
+    <string name="your_heavy_rotation">Your Heavy Rotation</string>
+
+    <!-- Typography -->
+    <string name="app_font">App typography</string>
+    <string name="app_font_desc">Choose font styling across Mercury</string>
+    <string name="font_mercury_premium">Mercury Premium (Urbanist &amp; Playfair)</string>
+    <string name="font_urbanist">Urbanist Clean</string>
+    <string name="font_system">System Default</string>
 </resources>

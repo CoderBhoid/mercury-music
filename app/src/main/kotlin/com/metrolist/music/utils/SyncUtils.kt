@@ -937,16 +937,35 @@ class SyncUtils @Inject constructor(
         }.onSuccess { result ->
             result.onSuccess { page ->
                 try {
-                    val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed()
+                    val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed().distinctBy { it.browseId.ifEmpty { it.id } }
+                    val remoteIds = remoteAlbums.flatMap { listOfNotNull(it.id, it.browseId.takeIf { b -> b.isNotEmpty() }, it.playlistId.takeIf { p -> p.isNotEmpty() }) }.toSet()
+                    val localAlbums = database.likedAlbumEntitiesByNameAsc()
+
+                    // Un-bookmark local albums that are no longer in remote liked albums
+                    localAlbums.filterNot { it.id in remoteIds || (it.playlistId != null && it.playlistId in remoteIds) }.forEach { album ->
+                        try {
+                            if (album.bookmarkedAt != null) {
+                                database.update(album.localToggleLike())
+                                delay(DB_OPERATION_DELAY_MS)
+                            }
+                        } catch (e: Exception) {
+                            Timber.e(e, "Failed to un-like removed album: ${album.id}")
+                        }
+                    }
 
                     remoteAlbums.forEach { album ->
                         try {
                             val dbAlbum = database.albumEntity(album.id)
+                                ?: (if (album.browseId.isNotEmpty()) database.albumEntity(album.browseId) else null)
+                                ?: (if (album.playlistId.isNotEmpty()) database.albumEntityByPlaylistId(album.playlistId) else null)
+
                             if (dbAlbum == null) {
                                 YouTube.album(album.browseId).onSuccess { albumPage ->
                                     database.insert(albumPage)
-                                    database.albumEntity(album.id)?.let { newDbAlbum ->
-                                        database.update(newDbAlbum.localToggleLike())
+                                    val inserted = database.albumEntity(albumPage.album.browseId)
+                                        ?: database.albumEntity(album.id)
+                                    if (inserted != null && inserted.bookmarkedAt == null) {
+                                        database.update(inserted.localToggleLike())
                                     }
                                 }
                             } else if (dbAlbum.bookmarkedAt == null) {
@@ -982,11 +1001,11 @@ class SyncUtils @Inject constructor(
         }.onSuccess { result ->
             result.onSuccess { page ->
                 try {
-                    val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed()
-                    val remoteIds = remoteAlbums.map { it.id }.toSet()
+                    val remoteAlbums = page.items.filterIsInstance<AlbumItem>().reversed().distinctBy { it.browseId.ifEmpty { it.id } }
+                    val remoteIds = remoteAlbums.flatMap { listOfNotNull(it.id, it.browseId.takeIf { b -> b.isNotEmpty() }, it.playlistId.takeIf { p -> p.isNotEmpty() }) }.toSet()
                     val localAlbums = database.uploadedAlbumEntitiesByNameAsc()
 
-                    localAlbums.filterNot { it.id in remoteIds }.forEach { album ->
+                    localAlbums.filterNot { it.id in remoteIds || (it.playlistId != null && it.playlistId in remoteIds) }.forEach { album ->
                         try {
                             database.update(album.toggleUploaded())
                             delay(DB_OPERATION_DELAY_MS)
@@ -998,11 +1017,16 @@ class SyncUtils @Inject constructor(
                     remoteAlbums.forEach { album ->
                         try {
                             val dbAlbum = database.albumEntity(album.id)
+                                ?: (if (album.browseId.isNotEmpty()) database.albumEntity(album.browseId) else null)
+                                ?: (if (album.playlistId.isNotEmpty()) database.albumEntityByPlaylistId(album.playlistId) else null)
+
                             if (dbAlbum == null) {
                                 YouTube.album(album.browseId).onSuccess { albumPage ->
                                     database.insert(albumPage)
-                                    database.albumEntity(album.id)?.let { newDbAlbum ->
-                                        database.update(newDbAlbum.toggleUploaded())
+                                    val inserted = database.albumEntity(albumPage.album.browseId)
+                                        ?: database.albumEntity(album.id)
+                                    if (inserted != null && !inserted.isUploaded) {
+                                        database.update(inserted.toggleUploaded())
                                     }
                                 }.onFailure { reportException(it) }
                             } else if (!dbAlbum.isUploaded) {

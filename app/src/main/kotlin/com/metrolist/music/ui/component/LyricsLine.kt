@@ -8,6 +8,7 @@ package com.metrolist.music.ui.component
 import android.graphics.BlurMaskFilter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -147,8 +148,50 @@ internal fun LyricsLine(
 ) {
     val density = LocalDensity.current
     
+    val isPreviousLine = (index == displayedCurrentLineIndex - 1)
+    val targetScale = when {
+        isActiveLine -> 1.08f
+        isPreviousLine -> 0.92f
+        else -> 0.92f
+    }
+    val targetAlpha = when {
+        !isSynced || item.isBackground -> 1f
+        isActiveLine -> 1f
+        isPreviousLine -> 0.40f
+        else -> 0.20f
+    }
+    val targetTranslationY = when {
+        isPreviousLine -> -8f
+        else -> 0f
+    }
+
+    val lineScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+        label = "lyricsLineScale"
+    )
+
+    val lineAlpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+        label = "lyricsLineAlpha"
+    )
+
+    val translationY by animateFloatAsState(
+        targetValue = targetTranslationY,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+        label = "lyricsTranslationY"
+    )
+
     val itemModifier = modifier
         .fillMaxWidth()
+        .graphicsLayer {
+            scaleX = lineScale
+            scaleY = lineScale
+            alpha = lineAlpha
+            this.translationY = translationY
+            transformOrigin = TransformOrigin(0.5f, 0.5f)
+        }
         .onSizeChanged { onSizeChanged(it.height) }
         .clip(RoundedCornerShape(8.dp))
         .combinedClickable(
@@ -223,12 +266,18 @@ internal fun LyricsLine(
                 val mainText = if (item.isBackground) mainTextRaw?.removePrefix("(")?.removeSuffix(")") else mainTextRaw
                 val subText = if (item.isBackground) subTextRaw?.removePrefix("(")?.removeSuffix(")") else subTextRaw
 
+                val activeShadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.White.copy(alpha = 0.70f),
+                    blurRadius = 14f
+                )
+
                 val lyricStyle = TextStyle(
                     fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
                     fontWeight = FontWeight.Bold,
                     fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
                     lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
                     letterSpacing = (-0.5).sp,
+                    shadow = if (isActiveLine) activeShadow else null,
                     textAlign = agentTextAlign,
                     fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -744,7 +793,11 @@ private fun WordLevelLyrics(
                             }
                         }
 
-                        translate(left = alignShift + lineCurrentPushes[lineIdx] + charBounds.left, top = charBounds.top + waveOffset)
+                        val wordLift = if (wordIdx != -1 && charLp > 0f && charLp < 1f) {
+                            with(density) { (-2).dp.toPx() } * (1f - kotlin.math.abs(sungFactor - 0.5f) * 2f).coerceAtLeast(0f)
+                        } else 0f
+
+                        translate(left = alignShift + lineCurrentPushes[lineIdx] + charBounds.left, top = charBounds.top + waveOffset + wordLift)
                         if (wordIdx != -1) {
                             scale(
                                 charScaleX,

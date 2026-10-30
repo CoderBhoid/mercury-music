@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import com.metrolist.music.constants.AppFont
+import com.metrolist.music.constants.AppFontKey
 import com.metrolist.music.constants.ChipSortTypeKey
 import com.metrolist.music.constants.CropAlbumArtKey
 import com.metrolist.music.constants.DefaultOpenTabKey
@@ -167,7 +169,7 @@ fun AppearanceSettings(
     val (miniPlayerBackground, onMiniPlayerBackgroundChange) =
         rememberEnumPreference(
             MiniPlayerBackgroundStyleKey,
-            defaultValue = MiniPlayerBackgroundStyle.DEFAULT,
+            defaultValue = MiniPlayerBackgroundStyle.BLUR,
         )
 
     val availableMiniPlayerBackgroundStyles =
@@ -195,7 +197,7 @@ fun AppearanceSettings(
     val (playerBackground, onPlayerBackgroundChange) =
         rememberEnumPreference(
             PlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.DEFAULT,
+            defaultValue = PlayerBackgroundStyle.GRADIENT,
         )
 
     val (defaultOpenTab, onDefaultOpenTabChange) =
@@ -280,6 +282,13 @@ fun AppearanceSettings(
 
     val (densityScale, onDensityScaleChange) = rememberPreference(DensityScaleKey, defaultValue = 1f)
     var showDensityScaleDialog by rememberSaveable { mutableStateOf(false) }
+
+    val (appFont, onAppFontChange) =
+        rememberEnumPreference(
+            AppFontKey,
+            defaultValue = AppFont.MERCURY_PREMIUM,
+        )
+    var showAppFontDialog by rememberSaveable { mutableStateOf(false) }
 
     val (listenTogetherInTopBar, onListenTogetherInTopBarChange) =
         rememberPreference(
@@ -601,6 +610,7 @@ fun AppearanceSettings(
                 when (it) {
                     NavigationTab.HOME -> stringResource(R.string.home)
                     NavigationTab.SEARCH -> stringResource(R.string.search)
+                    NavigationTab.LOCAL -> stringResource(R.string.local_tab)
                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
                 }
             },
@@ -652,6 +662,26 @@ fun AppearanceSettings(
                 when (it) {
                     GridItemSize.BIG -> stringResource(R.string.big)
                     GridItemSize.SMALL -> stringResource(R.string.small)
+                }
+            },
+        )
+    }
+
+    if (showAppFontDialog) {
+        EnumDialog(
+            onDismiss = { showAppFontDialog = false },
+            onSelect = {
+                onAppFontChange(it)
+                showAppFontDialog = false
+            },
+            title = stringResource(R.string.app_font),
+            current = appFont,
+            values = AppFont.values().toList(),
+            valueText = {
+                when (it) {
+                    AppFont.MERCURY_PREMIUM -> stringResource(R.string.font_mercury_premium)
+                    AppFont.URBANIST -> stringResource(R.string.font_urbanist)
+                    AppFont.SYSTEM -> stringResource(R.string.font_system)
                 }
             },
         )
@@ -1014,6 +1044,22 @@ fun AppearanceSettings(
                             title = { Text(stringResource(R.string.theme)) },
                             description = { Text(stringResource(R.string.theme_desc)) },
                             onClick = { navController.navigate("settings/appearance/theme") },
+                        ),
+                    )
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.edit),
+                            title = { Text(stringResource(R.string.app_font)) },
+                            description = {
+                                Text(
+                                    when (appFont) {
+                                        AppFont.MERCURY_PREMIUM -> stringResource(R.string.font_mercury_premium)
+                                        AppFont.URBANIST -> stringResource(R.string.font_urbanist)
+                                        AppFont.SYSTEM -> stringResource(R.string.font_system)
+                                    }
+                                )
+                            },
+                            onClick = { showAppFontDialog = true },
                         ),
                     )
                 },
@@ -1568,6 +1614,7 @@ fun AppearanceSettings(
                                 when (defaultOpenTab) {
                                     NavigationTab.HOME -> stringResource(R.string.home)
                                     NavigationTab.SEARCH -> stringResource(R.string.search)
+                                    NavigationTab.LOCAL -> stringResource(R.string.local_tab)
                                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
                                 },
                             )
@@ -1882,6 +1929,7 @@ enum class DarkMode {
 enum class NavigationTab {
     HOME,
     SEARCH,
+    LOCAL,
     LIBRARY,
 }
 

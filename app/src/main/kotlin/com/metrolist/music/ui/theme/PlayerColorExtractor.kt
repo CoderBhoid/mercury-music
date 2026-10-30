@@ -13,15 +13,15 @@ object PlayerColorExtractor {
         palette: Palette,
         fallbackColor: Int,
     ): List<Color> {
-        val primaryColor = Color(palette.rankedColors(1, fallbackColor).first())
-        return listOf(
-            primaryColor,
-            primaryColor.copy(
-                red = primaryColor.red * 0.6f,
-                green = primaryColor.green * 0.6f,
-                blue = primaryColor.blue * 0.6f,
-            ),
-            Color.Black,
-        )
+        val ranked = palette.rankedColors(2, fallbackColor)
+        val dominant = palette.getDominantColor(fallbackColor)
+        val vibrant = palette.getVibrantColor(dominant)
+        val darkVibrant = palette.getDarkVibrantColor(palette.getDarkMutedColor(android.graphics.Color.DKGRAY))
+
+        val topColor = Color(if (ranked.isNotEmpty()) ranked[0] else vibrant)
+        val middleColor = if (ranked.size > 1) Color(ranked[1]) else Color(darkVibrant)
+        val bottomColor = Color.Black
+
+        return listOf(topColor, middleColor, bottomColor)
     }
 }

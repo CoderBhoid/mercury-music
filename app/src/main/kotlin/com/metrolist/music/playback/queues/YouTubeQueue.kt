@@ -46,15 +46,20 @@ class YouTubeQueue(
                     val relEndpoint = nextResult.relatedEndpoint
                     
                     if (isRadioRequest && continuation == null && items.size <= 1) {
-                        if (endpoint.playlistId?.startsWith("RDAMVM") == true) {
-                            throw EmptyRadioQueueException()
-                        } else if (relEndpoint != null) {
+                        if (relEndpoint != null) {
                             val relatedPage = YouTube.related(relEndpoint).getOrNull()
                             if (relatedPage != null && relatedPage.songs.isNotEmpty()) {
                                 val relatedSongs = relatedPage.songs.filter { it.id != endpoint.videoId }
                                 items = items + relatedSongs
                             }
                         }
+                        if (items.size <= 1 && endpoint.playlistId?.startsWith("RDAMVM") == true && endpoint.videoId != null) {
+                            throw EmptyRadioQueueException()
+                        }
+                    }
+
+                    if (items.isEmpty() && preloadItem != null) {
+                        items = listOf(preloadItem.toYTItem())
                     }
 
                     endpoint = nextResult.endpoint

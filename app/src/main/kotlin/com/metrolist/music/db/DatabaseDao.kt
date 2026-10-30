@@ -112,10 +112,13 @@ interface DatabaseDao {
     @Query("SELECT * FROM album WHERE id = :albumId LIMIT 1")
     suspend fun albumEntity(albumId: String): AlbumEntity?
 
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY title")
+    @Query("SELECT * FROM album WHERE playlistId = :playlistId LIMIT 1")
+    suspend fun albumEntityByPlaylistId(playlistId: String): AlbumEntity?
+
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY title")
     suspend fun likedAlbumEntitiesByNameAsc(): List<AlbumEntity>
 
-    @Query("SELECT * FROM album WHERE isUploaded = 1 ORDER BY title")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY title")
     suspend fun uploadedAlbumEntitiesByNameAsc(): List<AlbumEntity>
 
     @Query("SELECT * FROM artist WHERE id = :artistId LIMIT 1")
@@ -923,27 +926,27 @@ interface DatabaseDao {
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY rowId")
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY rowId")
     fun albumsLikedByCreateDateAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY title")
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY title")
     fun albumsLikedByNameAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY year")
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY year")
     fun albumsLikedByYearAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY songCount")
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY songCount")
     fun albumsLikedBySongCountAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY duration")
+    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL GROUP BY id ORDER BY duration")
     fun albumsLikedByLengthAsc(): Flow<List<Album>>
 
     @Transaction
@@ -954,7 +957,7 @@ interface DatabaseDao {
         FROM album
                  JOIN song
                       ON song.albumId = album.id
-        WHERE bookmarkedAt IS NOT NULL
+        WHERE album.bookmarkedAt IS NOT NULL
         GROUP BY album.id
         ORDER BY SUM(song.totalPlayTime)
     """
@@ -963,27 +966,27 @@ interface DatabaseDao {
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE isUploaded = 1 ORDER BY rowId")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY rowId")
     fun albumsUploadedByCreateDateAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY title")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY title")
     fun albumsUploadedByNameAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY year")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY year")
     fun albumsUploadedByYearAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY songCount")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY songCount")
     fun albumsUploadedBySongCountAsc(): Flow<List<Album>>
 
     @Transaction
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
-    @Query("SELECT * FROM album WHERE bookmarkedAt IS NOT NULL ORDER BY duration")
+    @Query("SELECT * FROM album WHERE isUploaded = 1 GROUP BY id ORDER BY duration")
     fun albumsUploadedByLengthAsc(): Flow<List<Album>>
 
     @Transaction
@@ -994,7 +997,7 @@ interface DatabaseDao {
         FROM album
                  JOIN song
                       ON song.albumId = album.id
-        WHERE bookmarkedAt IS NOT NULL
+        WHERE album.isUploaded = 1
         GROUP BY album.id
         ORDER BY SUM(song.totalPlayTime)
     """

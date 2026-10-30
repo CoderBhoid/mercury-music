@@ -25,13 +25,25 @@ import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
 import com.materialkolor.score.Score
 
+import com.metrolist.music.constants.AppFont
+import com.metrolist.music.ui.theme.rememberAppTypography
+
 val DefaultThemeColor = Color(0xFFED5564)
+
+val ObsidianBackground = Color(0xFF090A0F)
+val ObsidianSurface = Color(0xFF0C0E16)
+val ObsidianSurfaceVariant = Color(0xFF12141F)
+val ObsidianTextPrimary = Color(0xFFFFFFFF)
+val ObsidianTextSecondary = Color(0xFF8E92A4)
+val ObsidianTextMuted = Color(0xFF505565)
+val ObsidianAccentElectric = Color(0xFF3B82F6)
 
 @Composable
 fun MetrolistTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,
+    appFont: AppFont = AppFont.MERCURY_PREMIUM,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -52,10 +64,21 @@ fun MetrolistTheme(
         )
     }
 
-    // Apply pureBlack modification if needed, similar to original logic
+    // Apply Obsidian dark palette when darkTheme is active
     val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
-        if (darkTheme && pureBlack) {
-            baseColorScheme.pureBlack(true)
+        if (darkTheme) {
+            if (pureBlack) {
+                baseColorScheme.pureBlack(true)
+            } else {
+                baseColorScheme.copy(
+                    background = ObsidianBackground,
+                    surface = ObsidianSurface,
+                    surfaceVariant = ObsidianSurfaceVariant,
+                    onBackground = ObsidianTextPrimary,
+                    onSurface = ObsidianTextPrimary,
+                    onSurfaceVariant = ObsidianTextSecondary
+                )
+            }
         } else {
             baseColorScheme
         }
@@ -64,6 +87,7 @@ fun MetrolistTheme(
     // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
         colorScheme = colorScheme,
+        typography = rememberAppTypography(appFont),
         content = content,
     )
 }

@@ -122,6 +122,9 @@ import com.metrolist.music.ui.menu.PlayerMenu
 import com.metrolist.music.ui.menu.QueueMenu
 import com.metrolist.music.ui.menu.SelectionMediaMetadataMenu
 import com.metrolist.music.ui.utils.ShowMediaInfo
+import com.metrolist.music.ui.component.LocalHazeState
+import com.metrolist.music.ui.component.obsidianGlassEffect
+import com.metrolist.music.ui.component.lightObsidianGlassEffect
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.makeTimeString
 import com.metrolist.music.utils.rememberPreference
@@ -260,18 +263,22 @@ fun Queue(
         state = state,
         modifier = modifier,
         background = {
-            Box(Modifier.fillMaxSize().background(Color.Unspecified))
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .obsidianGlassEffect(LocalHazeState.current, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), blurRadius = 30.dp),
+            )
         },
         collapsedContent = {
             if (useNewPlayerDesign) {
                 // New design
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 30.dp, vertical = 12.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                             .windowInsetsPadding(
                                 WindowInsets.systemBars.only(
                                     WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
@@ -380,8 +387,6 @@ fun Queue(
                         textBackgroundColor = TextBackgroundColor,
                         playerBackground = playerBackground,
                     )
-
-                    Spacer(modifier = Modifier.weight(1f))
 
                     Box(
                         modifier =
@@ -1292,16 +1297,16 @@ private fun PlayerQueueButton(
 
     val appliedModifier =
         if (isActive) {
-            modifier.then(buttonModifier.background(textButtonColor)).alpha(alphaFactor)
+            modifier
+                .then(buttonModifier)
+                .obsidianGlassEffect(LocalHazeState.current, shape, blurRadius = 20.dp)
+                .background(textButtonColor.copy(alpha = 0.85f))
+                .alpha(alphaFactor)
         } else {
             modifier
-                .then(
-                    buttonModifier.border(
-                        width = 1.dp,
-                        color = textButtonColor.copy(alpha = 0.3f),
-                        shape = shape,
-                    ),
-                ).alpha(alphaFactor)
+                .then(buttonModifier)
+                .lightObsidianGlassEffect(LocalHazeState.current, shape, blurRadius = 15.dp)
+                .alpha(alphaFactor)
         }
 
     Box(

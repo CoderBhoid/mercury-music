@@ -24,6 +24,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
+import com.metrolist.music.playback.audio.BeatDetectorAudioProcessor
 import com.metrolist.music.playback.audio.VolumeNormalizationAudioProcessor
 import com.metrolist.music.utils.safeDataStoreEdit
 import android.net.ConnectivityManager
@@ -80,6 +81,7 @@ import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
@@ -193,6 +195,7 @@ import com.metrolist.music.extensions.toQueue
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.models.PersistPlayerState
 import com.metrolist.music.models.PersistQueue
+import com.metrolist.music.models.MediaMetadata
 import com.metrolist.music.models.toMediaMetadata
 import com.metrolist.music.playback.alarm.MusicAlarmScheduler
 import com.metrolist.music.playback.alarm.MusicAlarmStore
@@ -1288,6 +1291,7 @@ class MusicService :
         val eqProcessor = CustomEqualizerAudioProcessor()
 
         val silenceProcessor = SilenceDetectorAudioProcessor { handleLongSilenceDetected() }
+        val beatProcessor = BeatDetectorAudioProcessor()
 
         // Set initial state — use pre-read prefs when available, otherwise fall back to DataStore
         val useAudioTrackPlaybackParams = if (prefs != null) {
@@ -1311,7 +1315,7 @@ class MusicService :
                 .setMediaSourceFactory(
                     createMediaSourceFactory(normalizationProcessor) { createdPlayer },
                 )
-                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, useAudioTrackPlaybackParams))
+                .setRenderersFactory(createRenderersFactory(normalizationProcessor, eqProcessor, silenceProcessor, beatProcessor, useAudioTrackPlaybackParams))
                 .setLoadControl(
                     // Start playback once ~750ms is buffered (media3's default is 1000ms) so first
                     // audio is audible a touch sooner. min/max/after-rebuffer match the media3 1.x
@@ -1997,6 +2001,84 @@ class MusicService :
         }
     }
 
+    private var automixJob: Job? = null
+
+    fun updateAutomixForCurrentSong(songMetadata: MediaMetadata?) {
+        if (songMetadata == null) return
+        if (!cachedAutoplay && !dataStore.get(SimilarContent, true)) return
+        if (!::player.isInitialized) return
+        val repeatMode = player.repeatMode
+        if (repeatMode == REPEAT_MODE_ALL || repeatMode == REPEAT_MODE_ONE) return
+
+        automixJob?.cancel()
+        automixJob = scope.launch(SilentHandler) {
+            val currentSongId = songMetadata.id
+            val currentSongArtists = songMetadata.artists
+                .map { it.name.lowercase().trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
+
+            val (radioItems, relatedSongs) = withContext(Dispatchers.IO) {
+                val radioRes = YouTube.next(
+                    WatchEndpoint(
+                        videoId = currentSongId,
+                        playlistId = "RDAMVM$currentSongId"
+                    )
+                ).getOrNull()
+
+                val relSongs = if (radioRes?.items?.isNotEmpty() == true) {
+                    radioRes.relatedEndpoint?.let { relEndpoint ->
+                        YouTube.related(relEndpoint).getOrNull()?.songs
+                    } ?: emptyList()
+                } else {
+                    emptyList()
+                }
+
+                (radioRes?.items ?: emptyList()) to relSongs
+            }
+
+            val seenIds = mutableSetOf<String>()
+            val allCandidates = mutableListOf<SongItem>()
+            for (item in radioItems + relatedSongs) {
+                if (seenIds.add(item.id)) {
+                    allCandidates.add(item)
+                }
+            }
+
+            val queueMediaIds = (0 until player.mediaItemCount).mapNotNull { index ->
+                player.getMediaItemAt(index).mediaId
+            }.toSet()
+
+            val filteredCandidates = allCandidates.filter { candidate ->
+                candidate.id != currentSongId && candidate.id !in queueMediaIds
+            }
+
+            val (matchingArtistCandidates, otherCandidates) = filteredCandidates.partition { candidate ->
+                candidate.artists.any { it.name.lowercase().trim() in currentSongArtists }
+            }
+            val prioritizedCandidates = matchingArtistCandidates + otherCandidates
+
+            val mediaItems = prioritizedCandidates
+                .map { it.toMediaItem() }
+                .filterExplicit(cachedHideExplicit)
+                .filterVideoSongs(cachedHideVideoSongs)
+
+            if (mediaItems.isNotEmpty()) {
+                automixItems.value = mediaItems
+                if (player.mediaItemCount - player.currentMediaItemIndex <= 1) {
+                    player.addMediaItem(mediaItems.first())
+                    if (player.shuffleModeEnabled) {
+                        applyShuffleOrder(
+                            player.currentMediaItemIndex,
+                            player.mediaItemCount,
+                            cachedShufflePlaylistFirst
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     fun addToQueueAutomix(
         item: MediaItem,
         position: Int,
@@ -2535,6 +2617,10 @@ class MusicService :
             }
         }
 
+        if (mediaItem != null) {
+            updateAutomixForCurrentSong(mediaItem.metadata)
+        }
+
         // Force Repeat One if the player ignored it and auto-advanced
         if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
             if (player.repeatMode == REPEAT_MODE_ONE &&
@@ -2631,11 +2717,61 @@ class MusicService :
                 return
             }
 
-            if (player.playWhenReady && cachedAutoplay && player.hasNextMediaItem()) {
-                player.seekToNextMediaItem()
-                player.prepare()
-                if (castConnectionHandler?.isCasting?.value != true) {
-                    player.play()
+            if (player.playWhenReady && cachedAutoplay) {
+                if (player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    if (castConnectionHandler?.isCasting?.value != true) {
+                        player.play()
+                    }
+                } else if (automixItems.value.isNotEmpty()) {
+                    val currentAutomix = automixItems.value.toMutableList()
+                    val nextItem = currentAutomix.removeAt(0)
+                    automixItems.value = currentAutomix
+                    val targetIndex = player.mediaItemCount
+                    player.addMediaItem(nextItem)
+                    player.seekTo(targetIndex, 0)
+                    player.prepare()
+                    if (castConnectionHandler?.isCasting?.value != true) {
+                        player.play()
+                    }
+                } else {
+                    val currentMeta = player.currentMetadata ?: player.currentMediaItem?.metadata
+                    if (currentMeta != null) {
+                        scope.launch(SilentHandler) {
+                            val radioItems = withContext(Dispatchers.IO) {
+                                val radioRes = YouTube.next(
+                                    WatchEndpoint(
+                                        videoId = currentMeta.id,
+                                        playlistId = "RDAMVM${currentMeta.id}"
+                                    )
+                                ).getOrNull()
+                                val items = radioRes?.items?.filter { it.id != currentMeta.id } ?: emptyList()
+                                if (items.isNotEmpty()) {
+                                    items.map { it.toMediaItem() }
+                                } else {
+                                    radioRes?.relatedEndpoint?.let { relEndpoint ->
+                                        YouTube.related(relEndpoint).getOrNull()?.songs
+                                            ?.filter { it.id != currentMeta.id }
+                                            ?.map { it.toMediaItem() }
+                                    } ?: emptyList()
+                                }
+                            }.filterExplicit(cachedHideExplicit).filterVideoSongs(cachedHideVideoSongs)
+
+                            if (radioItems.isNotEmpty()) {
+                                val nextItem = radioItems.first()
+                                val remaining = radioItems.drop(1)
+                                automixItems.value = remaining
+                                val targetIndex = player.mediaItemCount
+                                player.addMediaItem(nextItem)
+                                player.seekTo(targetIndex, 0)
+                                player.prepare()
+                                if (castConnectionHandler?.isCasting?.value != true) {
+                                    player.play()
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3779,6 +3915,10 @@ class MusicService :
         playerProvider: () -> ExoPlayer?,
     ): DataSource.Factory {
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
+            val uri = dataSpec.uri
+            if (uri.scheme == "content" || uri.scheme == "file" || uri.scheme == "android.resource") {
+                return@Factory dataSpec
+            }
             val mediaId = dataSpec.key ?: error("No media id")
             val storedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
             applyAudioNormalizationBeforePlayback(
@@ -3963,15 +4103,14 @@ class MusicService :
     ) =
         DefaultMediaSourceFactory(
             createDataSourceFactory(normalizationProcessor, playerProvider),
-            ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor(), Mp4Extractor())
-            },
+            DefaultExtractorsFactory().setConstantBitrateSeekingEnabled(true),
         )
 
     private fun createRenderersFactory(
         normalizationProcessor: VolumeNormalizationAudioProcessor,
         eqProcessor: CustomEqualizerAudioProcessor,
         silenceProcessor: SilenceDetectorAudioProcessor,
+        beatProcessor: BeatDetectorAudioProcessor,
         useAudioTrackPlaybackParams: Boolean,
     ) = object : DefaultRenderersFactory(this) {
         override fun buildAudioRenderers(
@@ -4032,6 +4171,7 @@ class MusicService :
                         normalizationProcessor,
                         eqProcessor,
                         silenceProcessor,
+                        beatProcessor,
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                     SonicAudioProcessor(),

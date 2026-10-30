@@ -19,6 +19,7 @@ import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.PlaylistSong
 import com.metrolist.music.extensions.reversed
 import com.metrolist.music.extensions.toEnum
+import com.metrolist.music.utils.AutoLibraryScanner
 import com.metrolist.music.utils.dataStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -113,6 +114,15 @@ constructor(
                 }
                 val online = page?.playlist
                 _onlinePlaylist.value = online
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val localPlaylist = playlist.first { it != null } ?: return@launch
+            playlistSongs.collect { songs ->
+                if (songs.isNotEmpty()) {
+                    AutoLibraryScanner.mirrorPlaylistToPublicStorage(context, localPlaylist.playlist.name, songs)
+                }
             }
         }
     }

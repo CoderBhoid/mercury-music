@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -406,9 +407,11 @@ fun GridItem(
     thumbnailContent: @Composable BoxWithConstraintsScope.() -> Unit,
     thumbnailRatio: Float = 1f,
     fillMaxWidth: Boolean = false,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     val gridHeight = currentGridThumbnailHeight()
     Column(
+        horizontalAlignment = horizontalAlignment,
         modifier = if (fillMaxWidth) {
             modifier
                 .padding(12.dp)
@@ -435,7 +438,11 @@ fun GridItem(
 
         title()
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (horizontalAlignment == Alignment.CenterHorizontally) Arrangement.Center else Arrangement.Start,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             badges()
 
             subtitle()
@@ -1260,6 +1267,7 @@ fun YouTubeGridItem(
     isPlaying: Boolean = false,
     fillMaxWidth: Boolean = false,
 ) = GridItem(
+    horizontalAlignment = if (item is ArtistItem) Alignment.CenterHorizontally else Alignment.Start,
     title = {
         Text(
             text = if (item is ArtistItem) {

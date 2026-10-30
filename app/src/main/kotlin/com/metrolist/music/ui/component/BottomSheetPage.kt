@@ -50,6 +50,8 @@ class BottomSheetPageState(
     fun dismiss() {
         isVisible = false
     }
+
+    fun hide() = dismiss()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

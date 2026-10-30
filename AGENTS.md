@@ -31,4 +31,31 @@ Metrolist is a 3rd party YouTube Music client written in Kotlin. It follows mate
 ```
 
 2. If the build is not successful, review the error messages, fix the issues in your code, and try building again.
-3. Once the build is successful, you can test your changes on an emulator or a physical device. Install the generated APK located at `app/build/outputs/apk/universalFoss/debug/app-universal-foss-debug.apk` and ask a human for help testing the specific features you worked on.
+3. Once the build is successful, you can test your changes on an emulator or a physical device. Install the generated APK located at `app/build/outputs/apk/foss/debug/app-foss-debug.apk` (or copy to root `Mercury-Music-latest.apk`).
+
+## Mercury Custom Player & UI Architecture (CRITICAL — DO NOT REGRESS)
+
+1. **Upper-Half Album Art Dissolve (`Thumbnail.kt`):**
+   - The album art MUST fill the upper screen in portrait mode (`fillMaxWidth().fillMaxHeight()`).
+   - The bottom edge MUST dissolve into the background using `BlendMode.DstIn` vertical gradient (`0.0f` to `Color.Black`, `0.5f` to `Color.Black`, `0.68f` to `0.90f`, `0.80f` to `0.60f`, `0.90f` to `0.25f`, `1.00f` to `Color.Transparent`).
+   - Hardware offscreen compositing (`CompositingStrategy.Offscreen`) and `cropArtwork = true` must be maintained.
+   - **NEVER** shrink the thumbnail back to a small 1:1 square card (`weight(1f, false)` or `size(thumbnailSize)`) unless explicitly commanded by the user.
+
+2. **Obsidian Dynamic Animated Background (`DynamicBackgroundView.kt` & `Player.kt`):**
+   - The player background MUST run `DynamicBackgroundView` (Kawarp AGSL simplex noise domain-warping on Android 13+ with orbital canvas fallback).
+   - Base backdrop color is deep solid `Color(0xFF07080C)` (never transparent/see-through).
+   - **NEVER** place an opaque black/dark gradient overlay over `DynamicBackgroundView`. Doing so kills the vibrant animation and turns the album art into a "flat PNG in the dark".
+   - Keep `DynamicBackgroundView` active for both the main player and lyrics screens.
+
+3. **App Branding & Navigation Transitions (`MainActivity.kt` & `AboutScreen.kt`):**
+   - Top bar header must show `mercury_logo_transparent` (28.dp) next to bold "Mercury" title when on home screen.
+   - About screen must display `mercury_logo_transparent` (64.dp) with true colors (no tint filter).
+   - NavHost transitions must use Obsidian's scale + fade animations (`fadeIn(300ms) + scaleIn(0.95f)` / `fadeOut(300ms) + scaleOut(0.95f)`).
+   - Media notification small icon must use `small_icon.xml` (monochrome Mercury planet vector).
+
+## Lessons Learned & Mistake Prevention
+
+- **Do Not Hallucinate "Reverts":** When a user reports that a layout element looks bad (e.g. top bar misalignment), fix ONLY the reported element. Never assume the user wants custom signature features (like full-screen dissolve or animated background) stripped out.
+- **Always Check Previous Good Commits/Logs:** Before reverting code, inspect git diffs, decompiled reference sources (`reference/obsidian`), or exact session logs. Never delegate a vague "revert" to a subagent without passing the exact reference implementation.
+- **Compose Imports:** Always import Compose layout extensions explicitly (e.g., `androidx.compose.foundation.layout.fillMaxHeight`, `androidx.compose.animation.scaleIn`).
+

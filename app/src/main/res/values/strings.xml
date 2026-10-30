@@ -7,12 +7,27 @@
 <!-- Translators: Do not modify this file for translations, use InnerTune's Weblate instead. -->
 
 <resources>
-    <!-- Bottom navigation -->
+    <!-- App Name & Header -->
+    <string name="mercury_app">Mercury</string>
+    <string name="credits_website">Website</string>
+    <string name="credits_support">Support Email</string>
     <string name="home">Home</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
     <string name="playlists">Playlists</string>
+    <string name="local_tab">Local</string>
+    <string name="local_music">Local Music</string>
+    <string name="folders">Folders</string>
+    <string name="cached">Cached</string>
+    <string name="all_audio">All Songs</string>
+    <string name="export_cache">Export Cache to Folder</string>
+    <string name="export_cache_desc">Save cached music to a folder on your device as MP3</string>
+    <string name="exporting">Exporting songs…</string>
+    <string name="export_cache_success">Successfully exported %d songs</string>
+    <string name="export_cache_failed">Failed to export songs</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="storage_permission_needed">Storage permission is required to browse device audio files</string>
 
     <!-- Top bar -->
     <plurals name="n_selected">
@@ -343,4 +358,25 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
+
+    <string name="import_playlist_via_link">Import Playlist via Link</string>
+    <string name="import_playlist_desc">Import playlists seamlessly from Spotify or YouTube Music</string>
+    <string name="spotify">Spotify</string>
+    <string name="youtube_music">YouTube Music</string>
+    <string name="spotify_link_hint">https://open.spotify.com/playlist/…</string>
+    <string name="youtube_link_hint">https://music.youtube.com/playlist?list=…</string>
+
+    <!-- YouTube Video Downloader -->
+    <string name="youtube_video_downloader">YouTube Video Downloader (up to 4K)</string>
+    <string name="youtube_video_downloader_desc">Download videos up to 4K UHD directly to your device</string>
+    <string name="paste_youtube_link">Paste YouTube video link</string>
+    <string name="fetch_video">Fetch Video</string>
+    <string name="fetching_video">Fetching video info…</string>
+    <string name="download_video">Download Video</string>
+    <string name="download_complete">Download complete! Saved to Downloads/Mercury</string>
+    <string name="open_video">Open</string>
+    <string name="share_video">Share</string>
+    <string name="select_resolution">Select Resolution</string>
+    <string name="error_invalid_youtube_link">Please enter a valid YouTube video link</string>
+    <string name="error_no_formats_found">No downloadable video formats found</string>
 </resources>

@@ -5,19 +5,25 @@
 
 package com.metrolist.music.ui.player
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +37,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,17 +56,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -118,7 +130,7 @@ private fun calculateThumbnailDimensions(
     containerWidth: Dp,
     containerHeight: Dp = containerWidth,
     horizontalPadding: Dp = PlayerHorizontalPadding,
-    cornerRadius: Dp = ThumbnailCornerRadius,
+    cornerRadius: Dp = 28.dp,
     isLandscape: Boolean = false
 ): ThumbnailDimensions {
     // In landscape, use height as the constraining dimension for a square thumbnail
@@ -131,7 +143,7 @@ private fun calculateThumbnailDimensions(
         itemWidth = containerWidth,
         containerSize = containerWidth,
         thumbnailSize = effectiveSize,
-        cornerRadius = cornerRadius * 2
+        cornerRadius = 28.dp
     )
 }
 
@@ -202,6 +214,9 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    onBackClick: () -> Unit = {},
+    isFavorite: Boolean = false,
+    onFavoriteClick: () -> Unit = {},
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -222,7 +237,7 @@ fun Thumbnail(
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
-        defaultValue = PlayerBackgroundStyle.DEFAULT
+        defaultValue = PlayerBackgroundStyle.GRADIENT
     )
     
     // Pre-calculate text color based on background style
@@ -263,7 +278,7 @@ fun Thumbnail(
 
     // Handle swipe to change song
     LaunchedEffect(itemScrollOffset) {
-        if (!thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
+        if (!isLandscape || !thumbnailLazyGridState.isScrollInProgress || !swipeThumbnail || itemScrollOffset != 0 || currentMediaIndex < 0) return@LaunchedEffect
 
         if (currentItem > currentMediaIndex && canSkipNext) {
             playerConnection.player.seekToNext()
@@ -274,6 +289,7 @@ fun Thumbnail(
 
     // Update position when song changes
     LaunchedEffect(mediaMetadata, canSkipPrevious, canSkipNext) {
+        if (!isLandscape) return@LaunchedEffect
         val index = maxOf(0, currentMediaIndex)
         if (index >= 0 && index < mediaItems.size) {
             try {
@@ -285,6 +301,7 @@ fun Thumbnail(
     }
 
     LaunchedEffect(playerConnection.player.currentMediaItemIndex) {
+        if (!isLandscape) return@LaunchedEffect
         val index = mediaItemsData.currentIndex
         if (index >= 0 && index != currentItem) {
             thumbnailLazyGridState.scrollToItem(index)
@@ -297,10 +314,6 @@ fun Thumbnail(
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                // Use hardware layer for entire Thumbnail to ensure smooth 120Hz animations
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
     ) {
         // Error view
         AnimatedVisibility(
@@ -324,74 +337,149 @@ fun Thumbnail(
             visible = error == null,
             enter = fadeIn(),
             exit = fadeOut(),
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (!isLandscape) Modifier.statusBarsPadding() else Modifier),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = if (isLandscape) Arrangement.Center else Arrangement.Top
-            ) {
-                // Now Playing header - hide in landscape mode
-                if (!isLandscape) {
-                    ThumbnailHeader(
-                        queueTitle = queueTitle,
-                        albumTitle = mediaMetadata?.album?.title,
-                        textColor = textBackgroundColor
-                    )
-                }
-                
-                // Thumbnail content
-                BoxWithConstraints(
-                    contentAlignment = Alignment.Center,
-                    modifier = if (isLandscape) {
-                        Modifier.weight(1f, false)
-                    } else {
-                        Modifier.fillMaxSize()
-                    }
+            if (isLandscape) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // Calculate dimensions once per size change, considering landscape mode
-                    val dimensions = remember(maxWidth, maxHeight, isLandscape) {
-                        calculateThumbnailDimensions(
-                            containerWidth = maxWidth,
-                            containerHeight = maxHeight,
-                            isLandscape = isLandscape
-                        )
-                    }
-
-                    // Remember the onSeek callback to prevent recomposition
-                    val onSeekCallback = remember {
-                        { direction: String, showEffect: Boolean ->
-                            seekDirection = direction
-                            showSeekEffect = showEffect
-                        }
-                    }
-                    
-                    // Derive scroll enabled state to prevent unnecessary recomposition
-                    val isScrollEnabled by remember(swipeThumbnail) {
-                        derivedStateOf { swipeThumbnail && isPlayerExpanded() }
-                    }
-                    
-                    LazyHorizontalGrid(
-                        state = thumbnailLazyGridState,
-                        rows = GridCells.Fixed(1),
-                        flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
-                        userScrollEnabled = isScrollEnabled,
-                        modifier = if (isLandscape) {
-                            Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
-                        } else {
-                            Modifier.fillMaxSize()
-                        }
+                    BoxWithConstraints(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.weight(1f, false),
                     ) {
-                        items(
-                            items = mediaItems,
-                            key = { item -> 
-                                item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
+                        val dimensions = remember(maxWidth, maxHeight, isLandscape) {
+                            calculateThumbnailDimensions(
+                                containerWidth = maxWidth,
+                                containerHeight = maxHeight,
+                                isLandscape = true
+                            )
+                        }
+
+                        val onSeekCallback = remember {
+                            { direction: String, showEffect: Boolean ->
+                                seekDirection = direction
+                                showSeekEffect = showEffect
                             }
-                        ) { item ->
+                        }
+
+                        val isScrollEnabled by remember(swipeThumbnail) {
+                            derivedStateOf { swipeThumbnail && isPlayerExpanded() }
+                        }
+
+                        LazyHorizontalGrid(
+                            state = thumbnailLazyGridState,
+                            rows = GridCells.Fixed(1),
+                            flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
+                            userScrollEnabled = isScrollEnabled,
+                            modifier = Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                        ) {
+                            items(
+                                items = mediaItems,
+                                key = { item ->
+                                    item.mediaId.ifEmpty { "unknown_${item.hashCode()}" }
+                                }
+                            ) { item ->
+                                ThumbnailItem(
+                                    item = item,
+                                    dimensions = dimensions,
+                                    hidePlayerThumbnail = hidePlayerThumbnail,
+                                    cropAlbumArt = cropAlbumArt,
+                                    textBackgroundColor = textBackgroundColor,
+                                    layoutDirection = layoutDirection,
+                                    onSeek = onSeekCallback,
+                                    playerConnection = playerConnection,
+                                    context = context,
+                                    isLandscape = true,
+                                    isListenTogetherGuest = isListenTogetherGuest,
+                                    currentMediaId = mediaMetadata?.id,
+                                    currentMediaThumbnail = mediaMetadata?.thumbnailUrl
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                val density = LocalDensity.current
+                val swipeThresholdPx = remember(density) { with(density) { 40.dp.toPx() } }
+
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    BoxWithConstraints(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (swipeThumbnail) {
+                                    Modifier.pointerInput(canSkipNext, canSkipPrevious) {
+                                        val edgeMarginPx = 28.dp.toPx()
+                                        var totalDrag = 0f
+                                        var triggered = false
+                                        var isEdgeTouch = false
+                                        detectHorizontalDragGestures(
+                                            onDragStart = { offset ->
+                                                totalDrag = 0f
+                                                triggered = false
+                                                isEdgeTouch = (offset.x < edgeMarginPx || offset.x > size.width - edgeMarginPx)
+                                            },
+                                            onDragEnd = {
+                                                totalDrag = 0f
+                                                triggered = false
+                                                isEdgeTouch = false
+                                            },
+                                            onDragCancel = {
+                                                totalDrag = 0f
+                                                triggered = false
+                                                isEdgeTouch = false
+                                            },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                if (!triggered && !isEdgeTouch) {
+                                                    totalDrag += dragAmount
+                                                    if (totalDrag < -swipeThresholdPx && canSkipNext) {
+                                                        triggered = true
+                                                        change.consume()
+                                                        playerConnection.player.seekToNext()
+                                                    } else if (totalDrag > swipeThresholdPx && canSkipPrevious) {
+                                                        triggered = true
+                                                        change.consume()
+                                                        playerConnection.player.seekToPreviousMediaItem()
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                } else Modifier
+                            )
+                    ) {
+                        val dimensions = remember(maxWidth, maxHeight, isLandscape) {
+                            calculateThumbnailDimensions(
+                                containerWidth = maxWidth,
+                                containerHeight = maxHeight,
+                                isLandscape = false
+                            )
+                        }
+
+                        val onSeekCallback = remember {
+                            { direction: String, showEffect: Boolean ->
+                                seekDirection = direction
+                                showSeekEffect = showEffect
+                            }
+                        }
+
+                        val currentItemObj = playerConnection.player.currentMediaItem
+                            ?: mediaItems.getOrNull(currentMediaIndex)
+                            ?: mediaItems.firstOrNull()
+                            ?: MediaItem.EMPTY
+
+                        AnimatedContent(
+                            targetState = mediaMetadata?.id,
+                            transitionSpec = { fadeIn(tween(350)) togetherWith fadeOut(tween(350)) },
+                            label = "ThumbnailCrossfade"
+                        ) { _ ->
                             ThumbnailItem(
-                                item = item,
+                                item = currentItemObj,
                                 dimensions = dimensions,
                                 hidePlayerThumbnail = hidePlayerThumbnail,
                                 cropAlbumArt = cropAlbumArt,
@@ -400,13 +488,25 @@ fun Thumbnail(
                                 onSeek = onSeekCallback,
                                 playerConnection = playerConnection,
                                 context = context,
-                                isLandscape = isLandscape,
+                                isLandscape = false,
                                 isListenTogetherGuest = isListenTogetherGuest,
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl
                             )
                         }
                     }
+
+                    ThumbnailHeader(
+                        queueTitle = queueTitle,
+                        albumTitle = mediaMetadata?.album?.title,
+                        textColor = textBackgroundColor,
+                        onBackClick = onBackClick,
+                        isFavorite = isFavorite,
+                        onFavoriteClick = onFavoriteClick,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                    )
                 }
             }
         }
@@ -438,47 +538,100 @@ private fun ThumbnailHeader(
     queueTitle: String?,
     albumTitle: String?,
     textColor: Color,
+    onBackClick: () -> Unit,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listenTogetherManager = LocalListenTogetherManager.current
     val listenTogetherRoleState = listenTogetherManager?.role?.collectAsStateWithLifecycle(initialValue = RoomRole.NONE)
-    val isListenTogetherGuest = listenTogetherRoleState?.value == RoomRole.GUEST
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .pointerInput(Unit) {
+                var dragAccumulator = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { dragAccumulator = 0f },
+                    onVerticalDrag = { change, dragAmount ->
+                        dragAccumulator += dragAmount
+                        if (dragAccumulator > 30f) {
+                            change.consume()
+                            onBackClick()
+                        }
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
     ) {
+        // Back chevron button on the left
+        IconButton(
+            onClick = onBackClick,
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.expand_more),
+                contentDescription = "Back",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        // Centered "NOW PLAYING" & subtitle
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(horizontal = 48.dp)
         ) {
-            // Listen Together indicator
             if (listenTogetherRoleState?.value != RoomRole.NONE) {
                 Text(
                     text = if (listenTogetherRoleState?.value == RoomRole.HOST) "Hosting Listen Together" else "Listening Together",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = textColor
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
                 )
             } else {
                 Text(
-                    text = stringResource(R.string.now_playing),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = textColor
+                    text = "NOW PLAYING",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
                 )
             }
             val playingFrom = queueTitle ?: albumTitle
             if (!playingFrom.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = playingFrom,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = textColor.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    ),
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.basicMarquee()
                 )
             }
+        }
+
+        // Heart / Favorite toggle on the right
+        IconButton(
+            onClick = onFavoriteClick,
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isFavorite) R.drawable.favorite else R.drawable.favorite_border
+                ),
+                contentDescription = "Favorite",
+                tint = if (isFavorite) MaterialTheme.colorScheme.error else Color.White,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -511,18 +664,15 @@ private fun ThumbnailItem(
         modifier = modifier
             .then(
                 if (isLandscape) {
-                    Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                    Modifier
+                        .size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                        .padding(horizontal = PlayerHorizontalPadding)
                 } else {
                     Modifier
-                        .width(dimensions.itemWidth)
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .fillMaxHeight()
                 }
             )
-            .padding(horizontal = PlayerHorizontalPadding)
-            .graphicsLayer {
-                // Render entire thumbnail item on separate hardware layer for smooth animations
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
@@ -557,9 +707,34 @@ private fun ThumbnailItem(
         contentAlignment = Alignment.Center
     ) {
         Box(
-            modifier = Modifier
-                .size(dimensions.thumbnailSize)
-                .clip(RoundedCornerShape(dimensions.cornerRadius))
+            modifier = if (isLandscape) {
+                Modifier
+                    .size(dimensions.thumbnailSize)
+                    .graphicsLayer {
+                        shape = RoundedCornerShape(28.dp)
+                        clip = true
+                    }
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0.00f to Color.Black,
+                                0.50f to Color.Black,
+                                0.68f to Color.Black.copy(alpha = 0.90f),
+                                0.80f to Color.Black.copy(alpha = 0.60f),
+                                0.90f to Color.Black.copy(alpha = 0.25f),
+                                1.00f to Color.Transparent
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            }
         ) {
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)
@@ -572,10 +747,10 @@ private fun ThumbnailItem(
 
                 ThumbnailImage(
                     artworkUri = artworkUriToUse,
-                    cropArtwork = cropAlbumArt
+                    cropArtwork = true
                 )
             }
-            
+
             // Cast button at top-right corner of thumbnail
             CastButton(
                 modifier = Modifier
@@ -622,11 +797,7 @@ private fun ThumbnailImage(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .graphicsLayer {
-                // Use offscreen compositing for hardware acceleration during animations
-                compositingStrategy = CompositingStrategy.Offscreen
-            }
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(if (artworkUri != null) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant)
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)

@@ -23,6 +23,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.LocalIndication
+import com.metrolist.music.ui.component.LocalHazeState
+import com.metrolist.music.ui.component.obsidianGlassEffect
+import com.metrolist.music.ui.component.lightObsidianGlassEffect
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -64,6 +67,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -74,6 +78,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -183,12 +188,12 @@ private fun NewMiniPlayer(
     // Theme settings - these rarely change
     val miniPlayerBackground by rememberEnumPreference(
         MiniPlayerBackgroundStyleKey,
-        defaultValue = MiniPlayerBackgroundStyle.DEFAULT,
+        defaultValue = MiniPlayerBackgroundStyle.BLUR,
     )
     val context = LocalContext.current
     var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     val isSystemInDarkTheme = isSystemInDarkTheme()
-    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.ON)
     val useDarkTheme =
         remember(darkTheme, isSystemInDarkTheme) {
             if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
@@ -293,14 +298,11 @@ private fun NewMiniPlayer(
         MiniPlayerBackgroundStyle.GRADIENT   -> MaterialTheme.colorScheme.surfaceContainer
         MiniPlayerBackgroundStyle.PURE_BLACK -> Color.Black
     }
-    val forceLightColors = !useDarkTheme && (miniPlayerBackground == MiniPlayerBackgroundStyle.PURE_BLACK ||
-            miniPlayerBackground == MiniPlayerBackgroundStyle.BLUR ||
-            miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT)
-
-    val primaryColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
-    val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
-    val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
-    val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
+    // Memoize colors - in modern Mercury Obsidian glass & gradient player, texts and symbols are pure high-contrast white with glow
+    val primaryColor = Color.White
+    val outlineColor = Color.White.copy(alpha = 0.85f)
+    val onSurfaceColor = Color.White
+    val errorColor = Color(0xFFFF5252)
 
     Box(
         modifier =
@@ -308,7 +310,7 @@ private fun NewMiniPlayer(
                 .fillMaxWidth()
                 .height(MiniPlayerHeight)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .padding(horizontal = 12.dp)
+                .padding(start = 20.dp, end = 20.dp)
                 .let { baseModifier ->
                     if (swipeThumbnail) {
                         baseModifier.pointerInput(Unit) {
@@ -373,39 +375,81 @@ private fun NewMiniPlayer(
                 },
     ) {
         val interactionSource = remember { MutableInteractionSource() }
+        val hazeState = LocalHazeState.current
+        val capsuleShape = CircleShape
+        val baseCapsuleModifier = Modifier
+            .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
+            .height(64.dp)
+            .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
+
+        val styledCapsuleModifier = when (miniPlayerBackground) {
+            MiniPlayerBackgroundStyle.PURE_BLACK -> {
+                baseCapsuleModifier
+                    .clip(capsuleShape)
+                    .background(Color.Black)
+                    .border(width = 1.dp, color = Color.White.copy(alpha = 0.12f), shape = capsuleShape)
+            }
+            MiniPlayerBackgroundStyle.TRANSPARENT -> {
+                baseCapsuleModifier
+                    .lightObsidianGlassEffect(
+                        hazeState = hazeState,
+                        shape = capsuleShape,
+                        blurRadius = 16.dp
+                    )
+            }
+            MiniPlayerBackgroundStyle.GRADIENT -> {
+                baseCapsuleModifier
+                    .clip(capsuleShape)
+                    .border(width = 1.dp, color = Color.White.copy(alpha = 0.15f), shape = capsuleShape)
+            }
+            MiniPlayerBackgroundStyle.BLUR -> {
+                baseCapsuleModifier
+                    .obsidianGlassEffect(
+                        hazeState = hazeState,
+                        shape = capsuleShape,
+                        blurRadius = 25.dp
+                    )
+            }
+            MiniPlayerBackgroundStyle.DEFAULT -> {
+                baseCapsuleModifier
+                    .obsidianGlassEffect(
+                        hazeState = hazeState,
+                        shape = capsuleShape,
+                        blurRadius = 25.dp
+                    )
+            }
+        }
+
         Box(
-            modifier =
-                Modifier
-                    .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
-                    .height(64.dp)
-                    .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
-                    .clip(RoundedCornerShape(32.dp))
-                    .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = LocalIndication.current,
-                        onClick = onClick
-                    ),
+            modifier = styledCapsuleModifier
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onClick
+                ),
         ) {
             when (miniPlayerBackground) {
                 MiniPlayerBackgroundStyle.BLUR -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        mediaMetadata?.thumbnailUrl?.let { url ->
-                            AsyncImage(
-                                model = url,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .blur(60.dp),
-                            )
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.45f)),
-                            )
-                        }
+                    mediaMetadata?.thumbnailUrl?.let { url ->
+                        AsyncImage(
+                            model = url,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        Modifier.blur(40.dp)
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                        )
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.35f)),
+                        )
                     }
                 }
                 MiniPlayerBackgroundStyle.GRADIENT -> {
@@ -417,10 +461,8 @@ private fun NewMiniPlayer(
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(
-                                Brush.horizontalGradient(colors)
-                            )
-                            .background(Color.Black.copy(alpha = 0.15f)),
+                            .background(Brush.horizontalGradient(colors))
+                            .background(Color.Black.copy(alpha = 0.20f)),
                     )
                 }
                 else -> {}
@@ -640,7 +682,14 @@ private fun NewMiniPlayerSongInfo(
                 text = metadata.title,
                 color = onSurfaceColor,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.85f),
+                        offset = Offset(0f, 1.5f),
+                        blurRadius = 8f
+                    )
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
                 modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
@@ -653,8 +702,16 @@ private fun NewMiniPlayerSongInfo(
                  if (metadata.artists.any { it.name.isNotBlank() }) {
                      Text(
                          text = metadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
-                         color = onSurfaceColor.copy(alpha = 0.7f),
+                         color = onSurfaceColor.copy(alpha = 0.90f),
                         fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        style = TextStyle(
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.75f),
+                                offset = Offset(0f, 1f),
+                                blurRadius = 6f
+                            )
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
                         modifier = Modifier.basicMarquee(iterations = 1, initialDelayMillis = 3000, velocity = 30.dp),
@@ -747,13 +804,10 @@ private fun LegacyMiniPlayer(
                 .then(if (isTabletLandscape) Modifier.width(500.dp) else Modifier.fillMaxWidth())
                 .height(MiniPlayerHeight)
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                .background(
-                    if (pureBlack && isSystemInDarkTheme()) {
-                        Color.Black
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainer
-                    },
+                .obsidianGlassEffect(
+                    hazeState = LocalHazeState.current,
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    blurRadius = 45.dp
                 ).clickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
@@ -1003,9 +1057,16 @@ private fun LegacyMiniMediaInfo(
         ) {
             Text(
                 text = mediaMetadata.title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.85f),
+                        offset = Offset(0f, 1.5f),
+                        blurRadius = 8f
+                    )
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.basicMarquee(),
@@ -1014,8 +1075,16 @@ private fun LegacyMiniMediaInfo(
              if (mediaMetadata.artists.any { it.name.isNotBlank() }) {
                  Text(
                      text = mediaMetadata.artists.joinToArtistString(" ${stringResource(R.string.and)} ") { it.name },
-                     color = MaterialTheme.colorScheme.secondary,
+                     color = Color.White.copy(alpha = 0.85f),
                     fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    style = TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black.copy(alpha = 0.75f),
+                            offset = Offset(0f, 1f),
+                            blurRadius = 6f
+                        )
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

@@ -233,6 +233,14 @@ constructor(
                     AlbumFilter.LIKED -> database.albumsLiked(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                     AlbumFilter.LIBRARY -> database.albums(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
                     AlbumFilter.UPLOADED -> database.albumsUploaded(sortType, descending).map { it.filterExplicitAlbums(hideExplicit) }
+                }.map { albums ->
+                    albums
+                        .distinctBy { it.id }
+                        .distinctBy { album ->
+                            val playlistPart = album.album.playlistId?.takeIf { it.isNotBlank() }
+                            val titleArtistPart = "${album.album.title.trim().lowercase()}_${album.artists.firstOrNull()?.name?.trim()?.lowercase().orEmpty()}"
+                            playlistPart ?: titleArtistPart
+                        }
                 }
             }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 

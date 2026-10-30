@@ -73,15 +73,28 @@ fun <E> ChipsRow(
         Spacer(Modifier.width(12.dp))
 
         chips.forEach { (value, label) ->
+            val isSelected = currentValue == value
             FilterChip(
-                label = { Text(label) },
-                selected = currentValue == value,
+                label = {
+                    Text(
+                        text = label,
+                        fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Medium
+                    )
+                },
+                selected = isSelected,
                 colors = FilterChipDefaults.filterChipColors(
-                    containerColor = containerColor,
+                    containerColor = containerColor.copy(alpha = 0.55f),
+                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                    selectedLabelColor = MaterialTheme.colorScheme.primary,
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
+                    borderColor = Color.Transparent,
+                    selectedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
                 ),
                 onClick = { onValueUpdate(value) },
-                shape = RoundedCornerShape(16.dp),
-                border = null
+                shape = RoundedCornerShape(20.dp),
             )
 
             Spacer(Modifier.width(8.dp))

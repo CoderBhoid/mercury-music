@@ -17,6 +17,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -236,10 +237,10 @@ fun OriginalLyrics(
 
     val playerBackground by rememberEnumPreference(
         key = PlayerBackgroundStyleKey,
-        defaultValue = PlayerBackgroundStyle.DEFAULT,
+        defaultValue = PlayerBackgroundStyle.GRADIENT,
     )
 
-    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.ON)
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val useDarkTheme =
         remember(darkTheme, isSystemInDarkTheme) {
@@ -979,19 +980,34 @@ fun OriginalLyrics(
                         val isLineAtSameTime = item.time == currentLineTime
                         val isActiveByIndex = index == displayedCurrentLineIndex
                         val isActiveByTime = isLineAtSameTime && displayedCurrentLineIndex >= 0
+                        val isPreviousLine = (index == displayedCurrentLineIndex - 1)
+                        val targetAlpha = when {
+                            !isSynced || (isSelectionModeActive && isSelected) -> 1f
+                            isActiveByIndex || isActiveByTime -> 1f
+                            isPreviousLine -> 0.40f
+                            else -> 0.20f
+                        }
+                        val targetScale = when {
+                            isActiveByIndex || isActiveByTime -> 1.08f
+                            isPreviousLine -> 0.92f
+                            else -> 0.92f
+                        }
+                        val targetTranslationY = if (isPreviousLine) -8f else 0f
 
                         val alpha by animateFloatAsState(
-                            targetValue =
-                                when {
-                                    !isSynced || (isSelectionModeActive && isSelected) -> 1f
-                                    isActiveByIndex || isActiveByTime -> 1f
-                                    else -> 0.5f
-                                },
-                            animationSpec = tween(durationMillis = 400),
+                            targetValue = targetAlpha,
+                            animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+                            label = "origLyricsAlpha"
                         )
                         val scale by animateFloatAsState(
-                            targetValue = if (isActiveByIndex || isActiveByTime) 1.05f else 1f,
-                            animationSpec = tween(durationMillis = 400),
+                            targetValue = targetScale,
+                            animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+                            label = "origLyricsScale"
+                        )
+                        val translationY by animateFloatAsState(
+                            targetValue = targetTranslationY,
+                            animationSpec = spring(dampingRatio = 0.65f, stiffness = 320f),
+                            label = "origLyricsTranslationY"
                         )
 
                         // Determine alignment based on agent for multi-singer support
@@ -1062,6 +1078,7 @@ fun OriginalLyrics(
                                     this.alpha = if (item.isBackground) alpha * 0.8f else alpha
                                     this.scaleX = scale * bgScale
                                     this.scaleY = scale * bgScale
+                                    this.translationY = translationY
                                 },
                             horizontalAlignment = agentAlignment,
                         ) {

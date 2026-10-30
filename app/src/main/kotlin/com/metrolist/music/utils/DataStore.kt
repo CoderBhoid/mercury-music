@@ -18,6 +18,12 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.metrolist.music.extensions.toEnum
+import com.metrolist.music.constants.DarkModeKey
+import com.metrolist.music.constants.PlayerBackgroundStyleKey
+import com.metrolist.music.constants.PlayerBackgroundStyle
+import com.metrolist.music.constants.MiniPlayerBackgroundStyleKey
+import com.metrolist.music.constants.MiniPlayerBackgroundStyle
+import com.metrolist.music.ui.screens.settings.DarkMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -90,7 +96,15 @@ inline fun <reified T : Enum<T>> enumPreference(
     context: Context,
     key: Preferences.Key<String>,
     defaultValue: T,
-) = ReadOnlyProperty<Any?, T> { _, _ -> context.dataStore[key].toEnum(defaultValue) }
+) = ReadOnlyProperty<Any?, T> { _, _ ->
+    val resolvedDefault = when (key) {
+        DarkModeKey -> (DarkMode.ON as? T) ?: defaultValue
+        PlayerBackgroundStyleKey -> (PlayerBackgroundStyle.GRADIENT as? T) ?: defaultValue
+        MiniPlayerBackgroundStyleKey -> (MiniPlayerBackgroundStyle.BLUR as? T) ?: defaultValue
+        else -> defaultValue
+    }
+    context.dataStore[key].toEnum(resolvedDefault)
+}
 
 @Composable
 fun <T> rememberPreference(
@@ -133,13 +147,21 @@ inline fun <reified T : Enum<T>> rememberEnumPreference(
 ): MutableState<T> {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val resolvedDefault = remember(key, defaultValue) {
+        when (key) {
+            DarkModeKey -> (DarkMode.ON as? T) ?: defaultValue
+            PlayerBackgroundStyleKey -> (PlayerBackgroundStyle.GRADIENT as? T) ?: defaultValue
+            MiniPlayerBackgroundStyleKey -> (MiniPlayerBackgroundStyle.BLUR as? T) ?: defaultValue
+            else -> defaultValue
+        }
+    }
 
     val state =
-        remember {
+        remember(resolvedDefault) {
             context.dataStore.data
-                .map { it[key].toEnum(defaultValue = defaultValue) }
+                .map { it[key].toEnum(defaultValue = resolvedDefault) }
                 .distinctUntilChanged()
-        }.collectAsStateWithLifecycle(defaultValue)
+        }.collectAsStateWithLifecycle(resolvedDefault)
 
     return remember {
         object : MutableState<T> {

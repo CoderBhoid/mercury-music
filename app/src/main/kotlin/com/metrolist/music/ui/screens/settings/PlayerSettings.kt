@@ -243,9 +243,9 @@ fun PlayerSettings(
             values = AudioQuality.values().toList(),
             valueText = {
                 when (it) {
-                    AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                    AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                    AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                    AudioQuality.AUTO -> "Auto (Dynamic Stream Selection)"
+                    AudioQuality.HIGH -> "High (OPUS 256kbps / FLAC Lossless)"
+                    AudioQuality.LOW -> "Low (Data Saver 96kbps)"
                 }
             }
         )
@@ -292,9 +292,9 @@ fun PlayerSettings(
                     description = {
                         Text(
                             when (audioQuality) {
-                                AudioQuality.AUTO -> stringResource(R.string.audio_quality_auto)
-                                AudioQuality.HIGH -> stringResource(R.string.audio_quality_high)
-                                AudioQuality.LOW -> stringResource(R.string.audio_quality_low)
+                                AudioQuality.AUTO -> "Auto (Dynamic Stream Selection)"
+                                AudioQuality.HIGH -> "High (OPUS 256kbps / FLAC Lossless)"
+                                AudioQuality.LOW -> "Low (Data Saver 96kbps)"
                             }
                         )
                     },

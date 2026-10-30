@@ -103,24 +103,23 @@ private data class CommunityLink(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val leadDeveloper = Contributor(
-    name = "Mo Agamy",
+    name = "Bhoid",
     roleRes = R.string.credits_lead_developer,
-    githubHandle = "mostafaalagamy",
+    githubHandle = "CoderBhoid",
     polygon = MaterialShapes.Cookie9Sided,
-    favoriteSongVideoId = "Mh2JWGWvy_Y"
+    favoriteSongVideoId = null
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val collaborators = listOf(
-    Contributor(name = "Adriel O'Connel", roleRes = R.string.credits_collaborator, githubHandle = "adrielGGmotion", sponsorUrl = "https://github.com/sponsors/adrielGGmotion", polygon = MaterialShapes.Cookie4Sided, favoriteSongVideoId = "m2zUrruKjDQ"),
-    Contributor(name = "Nyx", roleRes = R.string.credits_collaborator, githubHandle = "nyxiereal", sponsorUrl = "https://github.com/sponsors/nyxiereal", polygon = MaterialShapes.Cookie12Sided, favoriteSongVideoId = "zselaN6zPXw"),
+    Contributor(name = "Sednium Team", roleRes = R.string.credits_collaborator, githubHandle = "CoderBhoid", sponsorUrl = "https://sednium.com/donate", polygon = MaterialShapes.Cookie12Sided),
 )
 
 private val communityLinks = listOf(
-    CommunityLink(R.string.credits_discord, R.drawable.discord, "https://discord.com/invite/zrdbeRG2Mt"),
-    CommunityLink(R.string.credits_telegram, R.drawable.telegram, "https://t.me/metrolistapp"),
-    CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/MetrolistGroup/Metrolist"),
-    CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/MetrolistGroup/Metrolist/blob/main/LICENSE")
+    CommunityLink(R.string.credits_website, R.drawable.language, "https://sednium.com"),
+    CommunityLink(R.string.credits_view_repo, R.drawable.github, "https://github.com/CoderBhoid/mercury-music"),
+    CommunityLink(R.string.credits_support, R.drawable.email, "mailto:support@sednium.com"),
+    CommunityLink(R.string.credits_license_name, R.drawable.info, "https://github.com/CoderBhoid/mercury-music/blob/main/LICENSE")
 )
 
 private fun handleEasterEggClick(
@@ -186,27 +185,51 @@ private fun ContributorAvatar(
 private fun DeveloperSocials(
     uriHandler: androidx.compose.ui.platform.UriHandler
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://metrolist.cc") },
-            modifier = Modifier.weight(1f).height(48.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(painterResource(R.drawable.language), contentDescription = null)
+            FilledTonalButton(
+                onClick = { uriHandler.openUri("https://bhoid.sednium.com") },
+                modifier = Modifier.weight(1f).height(44.dp)
+            ) {
+                Icon(painterResource(R.drawable.language), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("bhoid.sednium.com", maxLines = 1, fontSize = 11.sp)
+            }
+            FilledTonalButton(
+                onClick = { uriHandler.openUri("https://github.com/CoderBhoid") },
+                modifier = Modifier.weight(1f).height(44.dp)
+            ) {
+                Icon(painterResource(R.drawable.github), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("CoderBhoid", maxLines = 1, fontSize = 11.sp)
+            }
         }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://github.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(painterResource(R.drawable.github), contentDescription = null)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri("https://www.instagram.com/mostafaalagamy") },
-            modifier = Modifier.weight(1f).height(48.dp)
-        ) {
-            Icon(painterResource(R.drawable.instagram), contentDescription = null)
+            FilledTonalButton(
+                onClick = { uriHandler.openUri("https://sednium.com") },
+                modifier = Modifier.weight(1f).height(44.dp)
+            ) {
+                Icon(painterResource(R.drawable.language), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("sednium.com", maxLines = 1, fontSize = 11.sp)
+            }
+            FilledTonalButton(
+                onClick = { uriHandler.openUri("mailto:support@sednium.com") },
+                modifier = Modifier.weight(1f).height(44.dp)
+            ) {
+                Icon(painterResource(R.drawable.email), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("support@sednium.com", maxLines = 1, fontSize = 11.sp)
+            }
         }
     }
 }
@@ -253,24 +276,16 @@ fun AboutScreen(
                     .padding(24.dp)
             ) {
                 Image(
-                    painter = painterResource(R.drawable.small_icon),
-                    contentDescription = stringResource(R.string.metrolist),
-                    colorFilter = ColorFilter.tint(
-                        color = MaterialTheme.colorScheme.primary,
-                        blendMode = BlendMode.SrcIn,
-                    ),
+                    painter = painterResource(R.drawable.mercury_logo_transparent),
+                    contentDescription = stringResource(R.string.mercury_app),
                     modifier = Modifier.size(64.dp)
                 )
         
                 Spacer(Modifier.width(20.dp))
         
                 Column {
-                    val metrolistName = stringResource(R.string.metrolist)
-                        .lowercase(Locale.getDefault())
-                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
-
                     Text(
-                        text = metrolistName,
+                        text = "Mercury",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -390,7 +405,7 @@ fun AboutScreen(
                 Spacer(Modifier.height(16.dp))
                 
                 Button(
-                    onClick = { uriHandler.openUri("https://buymeacoffee.com/mostafaalagamy") },
+                    onClick = { uriHandler.openUri("https://sednium.com/donate") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
