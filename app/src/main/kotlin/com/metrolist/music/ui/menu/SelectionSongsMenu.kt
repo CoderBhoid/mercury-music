@@ -131,6 +131,10 @@ fun SelectionSongMenu(
         mutableStateOf(false)
     }
 
+    var showChooseAlbumDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     val notAddedList by remember {
         mutableStateOf(mutableListOf<Song>())
     }
@@ -141,6 +145,15 @@ fun SelectionSongMenu(
         onGetSongIds = { songSelection.map { it.id } },
         onDismiss = {
             showChoosePlaylistDialog = false
+        },
+    )
+
+    AddToAlbumDialog(
+        isVisible = showChooseAlbumDialog,
+        onGetSong = { songSelection.map { it.id } },
+        onGetSongIds = { songSelection.map { it.id } },
+        onDismiss = {
+            showChooseAlbumDialog = false
         },
     )
 
@@ -440,6 +453,21 @@ fun SelectionSongMenu(
                                 },
                                 onClick = {
                                     showChoosePlaylistDialog = true
+                                },
+                            ),
+                        )
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.add_to_album)) },
+                                description = { Text(text = stringResource(R.string.add_to_album_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.album),
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    showChooseAlbumDialog = true
                                 },
                             ),
                         )

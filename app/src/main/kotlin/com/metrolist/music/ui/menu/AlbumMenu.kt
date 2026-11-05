@@ -158,6 +158,10 @@ fun AlbumMenu(
         mutableStateOf(false)
     }
 
+    var showChooseAlbumDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var showSelectArtistDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -176,6 +180,15 @@ fun AlbumMenu(
         onGetSongIds = { songs.map { it.id } },
         onDismiss = {
             showChoosePlaylistDialog = false
+        },
+    )
+
+    AddToAlbumDialog(
+        isVisible = showChooseAlbumDialog,
+        onGetSong = { songs.map { it.id } },
+        onGetSongIds = { songs.map { it.id } },
+        onDismiss = {
+            showChooseAlbumDialog = false
         },
     )
 
@@ -427,6 +440,19 @@ fun AlbumMenu(
                             },
                             onClick = {
                                 showChoosePlaylistDialog = true
+                            },
+                        ),
+                        Material3MenuItemData(
+                            title = { Text(text = stringResource(R.string.add_to_album)) },
+                            description = { Text(text = stringResource(R.string.add_to_album_desc)) },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.album),
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                showChooseAlbumDialog = true
                             },
                         ),
                         Material3MenuItemData(

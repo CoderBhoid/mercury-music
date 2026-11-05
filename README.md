@@ -10,7 +10,7 @@ An open-source, ad-free, privacy-respecting music streaming client engineered wi
 
 <br/>
 
-[![Latest Release](https://img.shields.io/badge/Release-v1.0-blue?style=for-the-badge&logo=android&logoColor=white&labelColor=0d1117)](https://github.com/CoderBhoid/mercury-music/releases)
+[![Latest Release](https://img.shields.io/badge/Release-v1.1-blue?style=for-the-badge&logo=android&logoColor=white&labelColor=0d1117)](https://github.com/CoderBhoid/mercury-music/releases)
 [![Platform](https://img.shields.io/badge/Platform-Android_8.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white&labelColor=0d1117)](https://www.android.com)
 [![License](https://img.shields.io/badge/License-GPL--3.0-green?style=for-the-badge&labelColor=0d1117)](LICENSE)
 [![Build Status](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=githubactions&logoColor=white&labelColor=0d1117)](https://github.com/CoderBhoid/mercury-music/actions)
@@ -19,7 +19,7 @@ An open-source, ad-free, privacy-respecting music streaming client engineered wi
 <br/>
 
 <a href="https://github.com/CoderBhoid/mercury-music/releases">
-  <img src="https://img.shields.io/badge/📥_Download_Latest_APK-v1.0_Release-238636?style=for-the-badge" alt="Download Latest APK" height="44" />
+  <img src="https://img.shields.io/badge/📥_Download_Latest_APK-v1.1_Release-238636?style=for-the-badge" alt="Download Latest APK" height="44" />
 </a>
 &nbsp;&nbsp;
 <a href="https://sednium.com/donate">

@@ -153,6 +153,10 @@ fun PlayerMenu(
         mutableStateOf(false)
     }
 
+    var showChooseAlbumDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var showListenTogetherDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -178,6 +182,20 @@ fun PlayerMenu(
         onGetSongIds = { listOf(mediaMetadata.id) },
         onDismiss = {
             showChoosePlaylistDialog = false
+        },
+    )
+
+    AddToAlbumDialog(
+        isVisible = showChooseAlbumDialog,
+        onGetSong = {
+            database.withTransaction {
+                insert(mediaMetadata)
+            }
+            listOf(mediaMetadata.id)
+        },
+        onGetSongIds = { listOf(mediaMetadata.id) },
+        onDismiss = {
+            showChooseAlbumDialog = false
         },
     )
 
@@ -451,6 +469,22 @@ fun PlayerMenu(
                             )
                         }
                         // Add to Library option
+                        add(
+                            Material3MenuItemData(
+                                title = { Text(text = stringResource(R.string.add_to_album)) },
+                                description = { Text(text = stringResource(R.string.add_to_album_desc)) },
+                                icon = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.album),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                },
+                                onClick = {
+                                    showChooseAlbumDialog = true
+                                },
+                            ),
+                        )
                         val isInLibrary = librarySong?.song?.inLibrary != null
                         add(
                             Material3MenuItemData(

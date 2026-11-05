@@ -44,12 +44,20 @@ object Updater {
     private const val KMP_APK_NAME = "Mercury-Music-latest.apk"
 
     /**
+     * Extracts numerical version components from strings like "v1.1", "1.0", or "Mercury Music v1.0".
+     */
+    fun extractVersionParts(version: String): List<Int> {
+        val versionNumberOnly = Regex("""(\d+(\.\d+)*)""").find(version)?.value ?: ""
+        return versionNumberOnly.split(".").mapNotNull { it.toIntOrNull() }
+    }
+
+    /**
      * Compares two version strings.
      * Returns: 1 if v1 > v2, -1 if v1 < v2, 0 if equal
      */
     fun compareVersions(v1: String, v2: String): Int {
-        val v1Parts = v1.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
-        val v2Parts = v2.removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
+        val v1Parts = extractVersionParts(v1)
+        val v2Parts = extractVersionParts(v2)
         val maxLength = maxOf(v1Parts.size, v2Parts.size)
         
         for (i in 0 until maxLength) {
@@ -68,6 +76,7 @@ object Updater {
      * Returns true if an update is available (latestVersion > currentVersion)
      */
     fun isUpdateAvailable(currentVersion: String, latestVersion: String): Boolean {
+        if (latestVersion.isBlank() || latestVersion == currentVersion) return false
         return compareVersions(latestVersion, currentVersion) > 0
     }
 
@@ -148,9 +157,10 @@ object Updater {
                     return@runCatching null
                 }
                 
+                val tagName = json.getString("tag_name")
                 val releaseInfo = ReleaseInfo(
-                    tagName = json.getString("tag_name"),
-                    versionName = json.optString("name", json.getString("tag_name")),
+                    tagName = tagName,
+                    versionName = tagName.ifBlank { json.optString("name", tagName) },
                     description = json.optString("body", ""),
                     releaseDate = json.optString("published_at", ""),
                     assets = parseAssets(json.optJSONArray("assets") ?: JSONArray())

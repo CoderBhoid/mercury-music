@@ -1,5 +1,6 @@
 package com.metrolist.music.utils
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
@@ -149,6 +150,7 @@ fun exportYouTubePlaylistAsM3U(
 private fun createExportFile(
     context: Context,
     filename: String,
+    overwrite: Boolean = true,
 ): File {
     // Create directory if it doesn't exist
     val exportDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "MercuryExports")
@@ -156,25 +158,34 @@ private fun createExportFile(
         exportDir.mkdirs()
     }
 
+    val exportFile = File(exportDir, filename)
+    if (overwrite) {
+        if (exportFile.exists()) {
+            exportFile.delete()
+        }
+        exportFile.createNewFile()
+        return exportFile
+    }
+
     // Create file with unique name (add timestamp if file exists)
     val baseFilename = filename.substringBeforeLast('.')
     val extension = filename.substringAfterLast('.', "")
-    var exportFile = File(exportDir, filename)
+    var targetFile = exportFile
     var counter = 1
 
-    while (exportFile.exists()) {
+    while (targetFile.exists()) {
         val newFilename =
             if (extension.isNotEmpty()) {
                 "${baseFilename}_$counter.$extension"
             } else {
                 "${baseFilename}_$counter"
             }
-        exportFile = File(exportDir, newFilename)
+        targetFile = File(exportDir, newFilename)
         counter++
     }
 
-    exportFile.createNewFile()
-    return exportFile
+    targetFile.createNewFile()
+    return targetFile
 }
 
 private fun getFileUri(
@@ -194,6 +205,7 @@ fun getExportFileUri(
 
 /**
  * Copy a generated export file into the public Documents/MercuryExports folder using MediaStore (scoped storage).
+ * Overwrites existing files with the same name to prevent duplicate (1), (2) file sprawl.
  * Returns the Uri to the public copy on success.
  */
 fun saveToPublicDocuments(
@@ -205,23 +217,40 @@ fun saveToPublicDocuments(
     return try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val resolver = context.contentResolver
-            val relativePath = Environment.DIRECTORY_DOCUMENTS + "/" + subdirectory
+            val relativePath = Environment.DIRECTORY_DOCUMENTS + "/" + subdirectory + "/"
 
-            val values =
-                ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, source.name)
-                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
-                    put(MediaStore.MediaColumns.IS_PENDING, 1)
-                }
-
-            // Use the primary external volume for generic files
             val collection = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val destUri =
+            var existingUri: Uri? = null
+
+            try {
+                val projection = arrayOf(MediaStore.MediaColumns._ID)
+                val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?"
+                val selectionArgs = arrayOf(source.name, "$relativePath%")
+                resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                        existingUri = ContentUris.withAppendedId(collection, id)
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore query failure, proceed to insert
+            }
+
+            val destUri = if (existingUri != null) {
+                existingUri!!
+            } else {
+                val values =
+                    ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, source.name)
+                        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+                        put(MediaStore.MediaColumns.IS_PENDING, 1)
+                    }
                 resolver.insert(collection, values)
                     ?: return Result.failure(IOException("Failed to create destination in MediaStore"))
+            }
 
-            resolver.openOutputStream(destUri)?.use { out ->
+            resolver.openOutputStream(destUri, "wt")?.use { out ->
                 source.inputStream().use { input ->
                     input.copyTo(out)
                 }
@@ -234,7 +263,6 @@ fun saveToPublicDocuments(
             Result.success(destUri)
         } else {
             // Best-effort fallback: keep the file in app-scoped Documents and return a sharable uri
-            // Older Android versions would require WRITE_EXTERNAL_STORAGE for true public Documents
             Result.success(getExportFileUri(context, source))
         }
     } catch (e: Exception) {

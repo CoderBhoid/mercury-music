@@ -20,6 +20,10 @@ import kotlin.math.absoluteValue
 
 object AutoLibraryScanner {
 
+    fun cleanExportName(rawName: String): String {
+        return rawName.replace(Regex("(_\\d+|\\s*\\(\\d+\\))$"), "").trim()
+    }
+
     private fun parseCsvLine(line: String): List<String> {
         val result = mutableListOf<String>()
         var current = StringBuilder()
@@ -56,9 +60,24 @@ object AutoLibraryScanner {
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Metrolist"),
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "Mercury"),
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "Playlists"),
-                context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.let { File(it, "MercuryExports") },
-                context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)?.let { File(it, "MetrolistExports") }
             ).filter { it.exists() && it.isDirectory }
+
+            // Clean up existing duplicates in database on startup
+            val existingPlaylists = database.playlistEntitiesByNameAsc()
+            val duplicatesInDb = existingPlaylists.filter { playlist ->
+                val clean = cleanExportName(playlist.name)
+                clean != playlist.name && existingPlaylists.any { it.id != playlist.id && it.name.trim().equals(clean, ignoreCase = true) }
+            }
+            for (dup in duplicatesInDb) {
+                try {
+                    database.query {
+                        delete(dup)
+                    }
+                    Timber.d("AutoLibraryScanner: Pruned duplicate playlist from DB: %s", dup.name)
+                } catch (e: Exception) {
+                    Timber.w(e, "Failed to prune duplicate playlist %s", dup.name)
+                }
+            }
 
             val playlistFiles = mutableListOf<File>()
             for (dir in candidateDirs) {
@@ -75,16 +94,35 @@ object AutoLibraryScanner {
                 return@runCatching 0
             }
 
-            // Existing playlist names in database
-            val existingNames = database.playlistEntitiesByNameAsc()
-                .map { it.name.trim().lowercase() }
+            // Existing playlist names in database (both raw and cleaned)
+            val updatedPlaylists = database.playlistEntitiesByNameAsc()
+            val existingNames = updatedPlaylists
+                .flatMap { listOf(it.name.trim().lowercase(), cleanExportName(it.name).lowercase()) }
                 .toSet()
 
             for (file in playlistFiles) {
-                val playlistName = file.nameWithoutExtension.trim()
-                if (playlistName.isBlank() || existingNames.contains(playlistName.lowercase())) {
+                val rawName = file.nameWithoutExtension.trim()
+                val cleanedName = cleanExportName(rawName)
+
+                // Delete physical redundant duplicate file if canonical file exists
+                if (cleanedName != rawName) {
+                    val canonicalFile = File(file.parentFile, "$cleanedName.${file.extension}")
+                    if (canonicalFile.exists() || existingNames.contains(cleanedName.lowercase())) {
+                        try {
+                            file.delete()
+                            Timber.d("AutoLibraryScanner: Deleted redundant export file %s", file.name)
+                        } catch (e: Exception) {
+                            Timber.w(e, "Failed to delete redundant export file %s", file.name)
+                        }
+                        continue
+                    }
+                }
+
+                if (cleanedName.isBlank() || existingNames.contains(cleanedName.lowercase()) || existingNames.contains(rawName.lowercase())) {
                     continue
                 }
+
+                val playlistName = cleanedName
 
                 val songsToAdd = mutableListOf<String>()
 

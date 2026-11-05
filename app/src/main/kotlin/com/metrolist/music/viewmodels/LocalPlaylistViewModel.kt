@@ -119,9 +119,14 @@ constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             val localPlaylist = playlist.first { it != null } ?: return@launch
+            var lastMirroredIds: List<String>? = null
             playlistSongs.collect { songs ->
                 if (songs.isNotEmpty()) {
-                    AutoLibraryScanner.mirrorPlaylistToPublicStorage(context, localPlaylist.playlist.name, songs)
+                    val currentIds = songs.map { it.song.id }
+                    if (currentIds != lastMirroredIds) {
+                        lastMirroredIds = currentIds
+                        AutoLibraryScanner.mirrorPlaylistToPublicStorage(context, localPlaylist.playlist.name, songs)
+                    }
                 }
             }
         }

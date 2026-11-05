@@ -108,6 +108,13 @@ fun AddToPlaylistDialog(
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
+    var searchQuery by rememberSaveable {
+        mutableStateOf("")
+    }
+    val filteredPlaylists = remember(playlists, searchQuery) {
+        if (searchQuery.isBlank()) playlists
+        else playlists.filter { it.playlist.name.contains(searchQuery, ignoreCase = true) }
+    }
     var showCreatePlaylistDialog by rememberSaveable {
         mutableStateOf(false)
     }
@@ -204,6 +211,37 @@ fun AddToPlaylistDialog(
                 }
             }
 
+            item {
+                androidx.compose.material3.OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text(stringResource(R.string.search_playlists)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(50),
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.search),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            androidx.compose.material3.IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.close),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+
             if (playlists.isNotEmpty()) {
                 item {
                     Row(
@@ -286,7 +324,8 @@ fun AddToPlaylistDialog(
                 }
             }
 
-            items(playlists) { playlist ->
+
+            items(filteredPlaylists) { playlist ->
                 val containsSong = playlist.id in playlistsContainingSong
                 val rowBg by animateColorAsState(
                     targetValue = if (containsSong)

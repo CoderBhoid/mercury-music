@@ -114,6 +114,10 @@ fun QueueMenu(
         mutableStateOf(false)
     }
 
+    var showChooseAlbumDialog by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
         onGetSong = {
@@ -125,6 +129,20 @@ fun QueueMenu(
         onGetSongIds = { listOf(mediaMetadata.id) },
         onDismiss = {
             showChoosePlaylistDialog = false
+        }
+    )
+
+    AddToAlbumDialog(
+        isVisible = showChooseAlbumDialog,
+        onGetSong = {
+            database.withTransaction {
+                insert(mediaMetadata)
+            }
+            listOf(mediaMetadata.id)
+        },
+        onGetSongIds = { listOf(mediaMetadata.id) },
+        onDismiss = {
+            showChooseAlbumDialog = false
         }
     )
 
@@ -370,6 +388,19 @@ fun QueueMenu(
                             } ?: run {
                                 playerConnection.addToQueue(mediaMetadata.toMediaItem())
                             }
+                        }
+                    ),
+                    Material3MenuItemData(
+                        title = { Text(text = stringResource(R.string.add_to_album)) },
+                        description = { Text(text = stringResource(R.string.add_to_album_desc)) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.album),
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showChooseAlbumDialog = true
                         }
                     )
                 )

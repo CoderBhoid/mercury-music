@@ -514,7 +514,7 @@ class MainActivity : FragmentActivity() {
                     val preferences = dataStore.data.first()
                     val notificationsEnabled = preferences[UpdateNotificationsEnabledKey] ?: true
                     val (releaseInfo, hasUpdate) = Updater.checkForUpdate().getOrNull() ?: (null to false)
-                    releaseInfo?.let { onLatestVersionNameChange(it.versionName) }
+                    releaseInfo?.let { onLatestVersionNameChange(it.tagName.ifBlank { it.versionName }) }
 
                     val standaloneUpdate =
                         releaseInfo
@@ -1132,7 +1132,7 @@ class MainActivity : FragmentActivity() {
                                             }
                                             IconButton(onClick = { showAccountDialog = true }) {
                                                 BadgedBox(badge = {
-                                                    if (latestVersionName != BuildConfig.BASE_VERSION_NAME) {
+                                                    if (Updater.isUpdateAvailable(BuildConfig.BASE_VERSION_NAME, latestVersionName)) {
                                                         Badge()
                                                     }
                                                 }) {
